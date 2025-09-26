@@ -1,0 +1,15 @@
+[theme]
+palette = "pastel"
+border_style = "rounded"
+panel_order = ["system", "cpu", "memory", "network", "load", "processes"]
+
+[refresh]
+interval_seconds = 1
+
+[panels]
+show_system = true
+show_cpu = true
+show_memory = true
+show_network = true
+show_load = true
+show_processes = true

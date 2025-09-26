@@ -4,8 +4,20 @@ from rich.table import Table
 from rich.live import Live
 from rich.panel import Panel
 from rich.align import Align
+import toml
 
 
+# Function to load config from TOML file
+def load_config(path="config.toml"):
+    try:
+        return toml.load(path)
+    except Exception as e:
+        print(f"Config load failed: {e}")
+        return {}
+
+# Load config after function definition
+config = load_config()
+refresh_rate = config.get("refresh", {}).get("interval_seconds", 1)
 
 kb = float(1024)
 mb = float(kb ** 2)
@@ -31,6 +43,8 @@ storageFree = int(disk.free/gb)
 storagePercent = int(storageUsed/storageTotal*100) if storageTotal else 0
 
 info = cpuinfo.get_cpu_info().get('brand_raw', 'Unknown')
+
+# ...existing code...
 
 def service():
     pidTotal = len(psutil.pids())
@@ -91,10 +105,13 @@ def network():
 
 
 
+
+# Main dashboard function
 def dashboard():
     console = Console()
     with Live(refresh_per_second=1, console=console) as live:
         while True:
+            # Gather system stats
             sysinfo = system()
             cpu_percent = cpu()
             meminfo = memory()
@@ -102,6 +119,7 @@ def dashboard():
             load = load_avg()
             procs = service()
 
+            # Build tables for each panel
             sys_table = Table(title="System Info", show_header=False)
             for k, v in sysinfo.items():
                 sys_table.add_row(k, str(v))
@@ -125,21 +143,44 @@ def dashboard():
             procs_table = Table(title="Processes", show_header=False)
             procs_table.add_row("Running Processes", str(procs))
 
-            # Layout
+            # Layout grid for dashboard
             grid = Table.grid(expand=True)
-            grid.add_row(
-                Panel(sys_table, border_style="cyan"),
-                Panel(cpu_table, border_style="magenta"),
-                Panel(mem_table, border_style="green")
-            )
-            grid.add_row(
-                Panel(net_table, border_style="yellow"),
-                Panel(load_table, border_style="blue"),
-                Panel(procs_table, border_style="red")
-            )
+            # Show/hide panels based on config
+            panels = config.get("panels", {})
+            show_system = panels.get("show_system", True)
+            show_cpu = panels.get("show_cpu", True)
+            show_mem = panels.get("show_memory", True)
+            show_net = panels.get("show_network", True)
+            show_load = panels.get("show_load", True)
+            show_procs = panels.get("show_processes", True)
 
+            # First row
+            row1 = []
+            if show_system:
+                row1.append(Panel(sys_table, border_style="cyan"))
+            if show_cpu:
+                row1.append(Panel(cpu_table, border_style="magenta"))
+            if show_mem:
+                row1.append(Panel(mem_table, border_style="green"))
+            if row1:
+                grid.add_row(*row1)
+
+            # Second row
+            row2 = []
+            if show_net:
+                row2.append(Panel(net_table, border_style="yellow"))
+            if show_load:
+                row2.append(Panel(load_table, border_style="blue"))
+            if show_procs:
+                row2.append(Panel(procs_table, border_style="red"))
+            if row2:
+                grid.add_row(*row2)
+
+            # Center and update dashboard
             live.update(Align.center(grid))
-            time.sleep(1)
+            time.sleep(refresh_rate)
 
+
+# Entry point
 if __name__ == "__main__":
     dashboard()
